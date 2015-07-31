@@ -1,8 +1,6 @@
-﻿using System.Threading.Tasks;
-using System.Web.Mvc;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
+﻿using System;
 using System.Threading;
+using System.Web.Mvc;
 
 namespace AsyncTesting
 {
@@ -10,25 +8,28 @@ namespace AsyncTesting
     {
         public IEmailService EmailService { get; set; }
 
-        public MyController(IEmailService emailService)
+        public ITaskScheduler TaskScheduler { get; set; }
+
+        public MyController(IEmailService emailService, ITaskScheduler taskScheduler)
         {
             EmailService = emailService;
+            TaskScheduler = taskScheduler;
         }
 
         public ViewResult BeginPasswordReset(string emailAddress)
         {
-            BeginPasswordResetAsync(emailAddress);
+            TaskScheduler.Run(ctx =>
+            {
+                ProcessPasswordReset(emailAddress);
+            });
 
             return View();
         }
 
-        private Task BeginPasswordResetAsync(string emailAddress)
+        private void ProcessPasswordReset(string emailAddress)
         {
-            return Task.Run(delegate
-            {
-                Thread.Sleep(500);
-                EmailService.Send(emailAddress);
-            });
+            Thread.Sleep(500);
+            EmailService.Send(emailAddress);
         }
 
     }
@@ -36,5 +37,10 @@ namespace AsyncTesting
     public interface IEmailService
     {
         void Send(string emailAddress);
+    }
+
+    public interface ITaskScheduler
+    {
+        void Run(Action<CancellationToken> action);
     }
 }
